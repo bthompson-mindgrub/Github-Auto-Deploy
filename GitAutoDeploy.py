@@ -33,10 +33,11 @@ class GitAutoDeploy(BaseHTTPRequestHandler):
         return myClass.config
 
     def do_POST(self):
+        config = self.getConfig()
         if self.headers.getheader('Authorization') == None:
             self.do_AUTHHEAD()
             pass
-        elif self.headers.getheader('Authorization') == 'Basic password1!':
+        elif self.headers.getheader('Authorization') == config['authorization']:
             urls = self.parseRequest()
             for url in urls:
                 paths = self.getMatchingPaths(url)
