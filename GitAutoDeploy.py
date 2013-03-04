@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-import json, urlparse, sys, os
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+import json, urllib.parse, sys, os
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from subprocess import call
 
 class GitAutoDeploy(BaseHTTPRequestHandler):
@@ -33,10 +33,11 @@ class GitAutoDeploy(BaseHTTPRequestHandler):
         return myClass.config
 
     def do_POST(self):
-        if self.headers.getheader('Authorization') == None:
+        config = self.getConfig()
+        if self.headers.get('Authorization') == None:
             self.do_AUTHHEAD()
             pass
-        elif self.headers.getheader('Authorization') == 'Basic password1!':
+        elif self.headers.get('Authorization') == config['authentication']:
             urls = self.parseRequest()
             for url in urls:
                 paths = self.getMatchingPaths(url)
@@ -45,6 +46,7 @@ class GitAutoDeploy(BaseHTTPRequestHandler):
                     self.deploy(path)
             pass
         else:
+            print(self.headers.get('Authorization'))
             self.do_AUTHHEAD()
             pass
 
@@ -56,7 +58,7 @@ class GitAutoDeploy(BaseHTTPRequestHandler):
         self.end_headers()
 
     def parseRequest(self):
-        length = int(self.headers.getheader('content-length'))
+        length = int(self.headers.get('content-length'))
         body = self.rfile.read(length)
         post = urlparse.parse_qs(body)
         items = []
@@ -80,8 +82,8 @@ class GitAutoDeploy(BaseHTTPRequestHandler):
 
     def pull(self, path):
         if(not self.quiet):
-            print "\nPost push request received"
-            print 'Updating ' + path
+            print("\nPost push request received")
+            print('Updating ' + path)
         call(['cd "' + path + '" && git pull'], shell=True)
 
     def deploy(self, path):
@@ -90,7 +92,7 @@ class GitAutoDeploy(BaseHTTPRequestHandler):
             if(repository['path'] == path):
                 if 'deploy' in repository:
                      if(not self.quiet):
-                         print 'Executing deploy command'
+                         print('Executing deploy command')
                      call(['cd "' + path + '" && ' + repository['deploy']], shell=True)
                 break
 
@@ -111,21 +113,22 @@ def main():
             os.setsid()
 
         if(not GitAutoDeploy.quiet):
-            print 'Github Autodeploy Service v 0.1 started'
+            print('Github Autodeploy Service v 0.1 started')
         else:
-            print 'Github Autodeploy Service v 0.1 started in daemon mode'
+            print('Github Autodeploy Service v 0.1 started in daemon mode')
 
         server = HTTPServer(('', GitAutoDeploy.getConfig()['port']), GitAutoDeploy)
         server.serve_forever()
     except (KeyboardInterrupt, SystemExit) as e:
         if(e): # wtf, why is this creating a new line?
-            print >> sys.stderr, e
+#            print >> sys.stderr, e
+            print(e)
 
         if(not server is None):
             server.socket.close()
 
         if(not GitAutoDeploy.quiet):
-            print 'Goodbye'
+            print('Goodbye')
 
 if __name__ == '__main__':
      main()
